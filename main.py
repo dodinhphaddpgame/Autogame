@@ -1,7 +1,7 @@
 import time
 import screenshot
 import winapiclickandswipe
-
+import ztest_refresh_tasks
 
 TEMPLATES = {
     # Check game / home
@@ -26,7 +26,7 @@ TEMPLATES = {
     "quest_claim_button": "templates/5_nhanquanhiemvu/1.png",
 }
 
-DEFAULT_THRESHOLD = 0.98
+DEFAULT_THRESHOLD = 0.96
 
 
 # =========================
@@ -231,9 +231,28 @@ def quest_master_loop(idx):
     result = handle_quest_panel(idx)
     print(f"[FLOW] quest panel result = {result}")
 
+    # Nếu đã xong hết nhiệm vụ ngày thì dừng
+    if result == "ALL_DONE":
+        return "ALL_DONE"
+
+    # Nếu vừa nhận quà/nhiệm vụ, màn hình có thể thay đổi.
+    # Cho vòng loop sau xử lý tiếp cho chắc.
+    if result in ("CLAIMED_DAILY_REWARD", "CLAIMED_QUEST_REWARD"):
+        return result
+
+    # Nếu không có gì để nhận, bắt đầu phase 2:
+    # phân loại nhiệm vụ và refresh task không làm được.
+    if result == "NO_CLAIM":
+        ok = ztest_refresh_tasks.normalize_task_list(idx)
+
+        if ok:
+            ztest_refresh_tasks.print_doable_tasks_with_action_type(idx)
+            return "TASKS_NORMALIZED"
+
+        return "TASKS_NORMALIZE_FAILED"
+
     return result
-
-
+    
 def main():
     idx = 3
 
@@ -242,6 +261,14 @@ def main():
 
         if result == "ALL_DONE":
             print("[MAIN] all daily quests completed, stop program")
+            break
+
+        if result == "TASKS_NORMALIZED":
+            print("[MAIN] tasks normalized, ready to run doable tasks")
+            break
+
+        if result == "TASKS_NORMALIZE_FAILED":
+            print("[MAIN] cannot normalize tasks, stop program")
             break
 
         sleep(0.5)
