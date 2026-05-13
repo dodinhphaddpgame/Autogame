@@ -26,7 +26,7 @@ TEMPLATES = {
     "quest_claim_button": "templates/5_nhanquanhiemvu/1.png",
 }
 
-DEFAULT_THRESHOLD = 0.96
+DEFAULT_THRESHOLD = 0.81
 
 
 # =========================
