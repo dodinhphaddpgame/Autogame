@@ -26,7 +26,7 @@ TEMPLATES = {
     "quest_claim_button": "templates/5_nhanquanhiemvu/1.png",
 }
 
-DEFAULT_THRESHOLD = 0.96
+DEFAULT_THRESHOLD = 0.81
 
 
 # =========================
@@ -109,7 +109,7 @@ def ensure_game_running(idx, img):
     if see(idx, img, "startgame1"):
         print("[FLOW] click start game")
         click(idx, img, "startgame1")
-        sleep(3)
+        sleep(30)
 
     img = get_screen_image2(idx)
     return game_is_running(idx, img)
