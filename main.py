@@ -24,9 +24,14 @@ TEMPLATES = {
     "daily_reward_popup": "templates/6_trangthainhiemvu/5.png",
     "daily_reward_claim_button": "templates/6_trangthainhiemvu/8.png",
     "quest_claim_button": "templates/5_nhanquanhiemvu/1.png",
+
+    # Reward pack after quest claim
+    "item_pack_tap_to_open": "templates/5_nhanquanhiemvu/5.png",
+    "item_pack_reveal_all": "templates/5_nhanquanhiemvu/6.png",
+    "item_pack_continue": "templates/5_nhanquanhiemvu/7.png",
 }
 
-DEFAULT_THRESHOLD = 0.81
+DEFAULT_THRESHOLD = 0.78
 
 
 # =========================
@@ -167,38 +172,120 @@ def claim_daily_reward_popup(idx, img):
     print("[QUEST] daily reward popup found but claim button not available")
     return False
 
+def handle_item_pack_after_claim(idx, max_steps=8):
+    """
+    Xử lý các màn thưởng sau khi claim task:
+    - TAP TO OPEN
+    - REVEAL ALL
+    - CONTINUE
 
-def claim_quest_reward(idx, img):
-    if click(idx, img, "quest_claim_button", threshold=0.90):
-        print("[QUEST] claimed quest reward")
-        sleep(1)
-        return True
+    Return True nếu đã xử lý xong hoặc đã quay lại DAILY TASKS.
+    """
 
+    for step in range(max_steps):
+        img = get_screen_image(idx)
+
+        # Nếu đã quay lại bảng nhiệm vụ thì xong
+        if quest_panel_open(idx, img):
+            print("[REWARD] back to quest panel")
+            return True
+
+        # Màn có nút TAP TO OPEN
+        if click(idx, img, "item_pack_tap_to_open", threshold=0.88):
+            print("[REWARD] click TAP TO OPEN")
+            sleep(1)
+            continue
+
+        # Màn có nút REVEAL ALL
+        if click(idx, img, "item_pack_reveal_all", threshold=0.88):
+            print("[REWARD] click REVEAL ALL")
+            sleep(1)
+            continue
+
+        # Màn có nút CONTINUE
+        if click(idx, img, "item_pack_continue", threshold=0.88):
+            print("[REWARD] click CONTINUE")
+            sleep(1)
+            continue
+
+        print(f"[REWARD] no reward button found, step={step}")
+        sleep(1.5)
+
+    print("[REWARD] item pack flow timeout")
     return False
 
+def claim_quest_reward(idx, img):
+    """
+    Claim reward của task nhỏ.
+    Sau khi claim có thể hiện ITEM PACK, nên phải xử lý xong pack rồi mới return.
+    """
+
+    if not click(idx, img, "quest_claim_button", threshold=0.90):
+        return False
+
+    print("[QUEST] clicked quest reward CLAIM")
+    sleep(1.5)
+
+    handle_item_pack_after_claim(idx)
+
+    return True
+
+def close_daily_reward_popup(idx):
+    print("[QUEST] close daily reward popup by clicking empty area")
+
+    winapiclickandswipe.click2(idx, 520, 300)
+    sleep(2)
+
+    img = get_screen_image(idx)
+
+    if daily_reward_popup_open(idx, img):
+        print("[QUEST] daily reward popup still open after click")
+        return False
+
+    print("[QUEST] daily reward popup closed")
+    return True
 
 def handle_quest_panel(idx):
     img = get_screen_image(idx)
 
-    # 1. Trạng thái cuối: đã hoàn thành toàn bộ nhiệm vụ ngày
+    # 1. Nếu popup DAILY REWARDS đang mở
+    if daily_reward_popup_open(idx, img):
+        print("[QUEST] daily reward popup open")
+
+        # 1.1. Nếu daily reward claim được thì claim
+        if claim_daily_reward_popup(idx, img):
+            return "CLAIMED_DAILY_REWARD"
+
+        # 1.2. Nếu daily reward chưa claim được thì đóng popup
+        print("[QUEST] daily reward popup not ready, close it")
+        close_daily_reward_popup(idx)
+
+        # 1.3. Đóng popup xong phải chụp lại ảnh
+        img = get_screen_image(idx)
+
+        # 1.4. Ưu tiên nhận reward của task nhỏ
+        if claim_quest_reward(idx, img):
+            return "CLAIMED_QUEST_REWARD"
+
+        # 1.5. Nếu không còn task nhỏ để nhận thì mới check all done
+        if daily_all_done(idx, img):
+            print("[QUEST] all daily quests completed")
+            return "ALL_DONE"
+
+        # 1.6. Không có gì để nhận thì mới chuyển qua scan/refresh task
+        print("[QUEST] no claim button found after closing daily reward popup")
+        return "NO_CLAIM"
+
+    # 2. Nếu không có popup, nhận reward task nhỏ trước
+    if claim_quest_reward(idx, img):
+        return "CLAIMED_QUEST_REWARD"
+
+    # 3. Không còn reward nhỏ thì mới check all done
     if daily_all_done(idx, img):
         print("[QUEST] all daily quests completed")
         return "ALL_DONE"
 
-    # 2. Popup phần thưởng tổng hằng ngày
-    if daily_reward_popup_open(idx, img):
-        print("[QUEST] daily reward popup open")
-
-        if claim_daily_reward_popup(idx, img):
-            return "CLAIMED_DAILY_REWARD"
-
-        return "DAILY_REWARD_POPUP_NOT_READY"
-
-    # 3. Nút NHẬN của từng nhiệm vụ nhỏ
-    if claim_quest_reward(idx, img):
-        return "CLAIMED_QUEST_REWARD"
-
-    # 4. Chưa có gì để nhận
+    # 4. Không có gì để nhận -> chuyển sang ztest_refresh_tasks
     print("[QUEST] no claim button found")
     return "NO_CLAIM"
 
@@ -270,7 +357,6 @@ def main():
         if result == "TASKS_NORMALIZE_FAILED":
             print("[MAIN] cannot normalize tasks, stop program")
             break
-
         sleep(0.5)
 
 
