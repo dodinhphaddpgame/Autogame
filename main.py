@@ -109,7 +109,7 @@ def ensure_game_running(idx, img):
     if see(idx, img, "startgame1"):
         print("[FLOW] click start game")
         click(idx, img, "startgame1")
-        sleep(3)
+        sleep(30)
 
     img = get_screen_image2(idx)
     return game_is_running(idx, img)
