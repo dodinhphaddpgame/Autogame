@@ -2,6 +2,7 @@ import time
 import screenshot
 import winapiclickandswipe
 import ztest_refresh_tasks
+import task_runner
 
 TEMPLATES = {
     # Check game / home
@@ -333,8 +334,16 @@ def quest_master_loop(idx):
         ok = ztest_refresh_tasks.normalize_task_list(idx)
 
         if ok:
-            ztest_refresh_tasks.print_doable_tasks_with_action_type(idx)
-            return "TASKS_NORMALIZED"
+            task = ztest_refresh_tasks.get_first_doable_task(idx)
+
+            if task is None:
+                print("[FLOW] tasks normalized but no doable task found")
+                return "NO_DOABLE_TASK"
+
+            return {
+                "status": "TASK_READY",
+                "task": task,
+            }
 
         return "TASKS_NORMALIZE_FAILED"
 
@@ -350,13 +359,51 @@ def main():
             print("[MAIN] all daily quests completed, stop program")
             break
 
-        if result == "TASKS_NORMALIZED":
-            print("[MAIN] tasks normalized, ready to run doable tasks")
-            break
+        if result in ("CLAIMED_DAILY_REWARD", "CLAIMED_QUEST_REWARD"):
+            print("[MAIN] reward claimed, continue loop")
+            sleep(0.5)
+            continue
+
+        if result == "WAITING_GAME_OPEN":
+            print("[MAIN] waiting game open")
+            sleep(2)
+            continue
+
+        if result == "RETURNING_HOME":
+            print("[MAIN] returning home")
+            sleep(1)
+            continue
+
+        if result == "OPEN_QUEST_PANEL_FAILED":
+            print("[MAIN] open quest panel failed, retry")
+            sleep(1)
+            continue
 
         if result == "TASKS_NORMALIZE_FAILED":
             print("[MAIN] cannot normalize tasks, stop program")
             break
+
+        if result == "NO_DOABLE_TASK":
+            print("[MAIN] no doable task after normalize, stop program")
+            break
+
+        if isinstance(result, dict) and result.get("status") == "TASK_READY":
+            task = result["task"]
+
+            print("[MAIN] got one task, start runner")
+
+            ok = task_runner.run_task_by_action_type(idx, task)
+
+            if not ok:
+                print("[MAIN] task runner failed, stop program")
+                break
+
+            print("[MAIN] task runner finished, continue loop from beginning")
+
+            sleep(1)
+            continue
+
+        print(f"[MAIN] unknown result: {result}")
         sleep(0.5)
 
 

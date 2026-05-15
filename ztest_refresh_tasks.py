@@ -703,40 +703,6 @@ def normalize_task_list(idx, max_refresh_rounds=MAX_REFRESH_ROUNDS):
 # SAU NÀY DÙNG ĐỂ CHẠY NHIỆM VỤ THEO action_type
 # ============================================================
 
-def run_task_by_action_type(idx, action_type):
-    """
-    Placeholder cho phase sau.
-
-    Sau khi normalize xong, bạn sẽ dùng action_type để gọi flow tương ứng.
-    """
-
-    if action_type == "score_goals":
-        print("[RUN] run_score_goals_task")
-        # return run_score_goals_task(idx)
-        return True
-
-    if action_type == "earn_tokens":
-        print("[RUN] run_earn_tokens_task")
-        # return run_earn_tokens_task(idx)
-        return True
-
-    if action_type == "play_match":
-        print("[RUN] run_play_match_task")
-        # return run_play_match_task(idx)
-        return True
-
-    if action_type == "win_match":
-        print("[RUN] run_win_match_task")
-        # return run_win_match_task(idx)
-        return True
-
-    if action_type == "default":
-        print("[RUN] default doable task action")
-        return True
-
-    print(f"[RUN] unknown action_type: {action_type}")
-    return False
-
 
 def print_doable_tasks_with_action_type(idx):
     """
@@ -764,6 +730,49 @@ def print_doable_tasks_with_action_type(idx):
                 f"action_type={result['action_type']}"
             )
 
+def get_first_doable_task(idx):
+    """
+    Lấy nhiệm vụ DOABLE đầu tiên từ trái sang phải.
+
+    Return:
+        {
+            "card_no": 1,
+            "template": "...",
+            "action_type": "1_play_match"
+        }
+
+    Nếu không có task DOABLE:
+        return None
+    """
+
+    img = get_screen_image(idx)
+
+    for card_index, card_region in enumerate(TASK_CARD_REGIONS):
+        card_no = card_index + 1
+
+        result = classify_task_card(
+            img=img,
+            card_region=card_region,
+            card_no=card_no
+        )
+
+        if result["status"] == "DOABLE":
+            task = {
+                "card_no": card_no,
+                "template": result["template"],
+                "action_type": result["action_type"],
+            }
+
+            print("")
+            print("========== FIRST DOABLE TASK ==========")
+            print(f"[TASK] card_no={task['card_no']}")
+            print(f"[TASK] action_type={task['action_type']}")
+            print(f"[TASK] template={task['template']}")
+
+            return task
+
+    print("[TASK] no doable task found")
+    return None
 
 # ============================================================
 # DEBUG TOOLS
