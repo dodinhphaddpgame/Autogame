@@ -43,18 +43,9 @@ TASK_TEMPLATE_DIRS = {
 # Ví dụ cấu trúc mới:
 #
 # templates/7_task_types/doable/
-# ├── score_goals/
-# │   ├── score_5_goals.png
-# │   └── score_10_goals.png
-# │
-# ├── earn_tokens/
-# │   └── earn_100_tokens.png
-# │
-# ├── play_match/
-# │   └── play_1_match.png
-# │
-# └── win_match/
-#     └── win_1_match.png
+# ├── 1_play_match/
+# ├── 2_store/
+# └── 3_train_player/
 
 
 # ============================================================

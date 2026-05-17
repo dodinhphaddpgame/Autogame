@@ -141,7 +141,7 @@ def ensure_quest_panel_open(idx, img):
             sleep(1)
 
         if click(idx, img, "openbangnhiemvu3"):
-            sleep(1)
+            sleep(2)
 
         if click(idx, img, "openbangnhiemvu1"):
             sleep(1)
@@ -384,8 +384,9 @@ def main():
             break
 
         if result == "NO_DOABLE_TASK":
-            print("[MAIN] no doable task after normalize, stop program")
-            break
+            print("[MAIN] no doable task after normalize, retry from beginning")
+            sleep(1)
+            continue
 
         if isinstance(result, dict) and result.get("status") == "TASK_READY":
             task = result["task"]
