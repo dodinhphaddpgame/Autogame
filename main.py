@@ -32,7 +32,7 @@ TEMPLATES = {
     "item_pack_continue": "templates/5_nhanquanhiemvu/7.png",
 }
 
-DEFAULT_THRESHOLD = 0.78
+DEFAULT_THRESHOLD = 0.85
 
 
 # =========================
@@ -318,7 +318,8 @@ def quest_master_loop(idx):
 
     result = handle_quest_panel(idx)
     print(f"[FLOW] quest panel result = {result}")
-
+    sleep(1.5)  # chờ Daily Tasks panel ổn định
+    
     # Nếu đã xong hết nhiệm vụ ngày thì dừng
     if result == "ALL_DONE":
         return "ALL_DONE"

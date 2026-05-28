@@ -634,6 +634,7 @@ def normalize_task_list(idx, max_refresh_rounds=MAX_REFRESH_ROUNDS):
     """
 
     ensure_dirs()
+    sleep(1.0)  # thêm dòng này
 
     for round_no in range(1, max_refresh_rounds + 1):
         print("")
@@ -735,7 +736,7 @@ def get_first_doable_task(idx):
     Nếu không có task DOABLE:
         return None
     """
-
+    sleep(0.8)
     img = get_screen_image(idx)
 
     for card_index, card_region in enumerate(TASK_CARD_REGIONS):
