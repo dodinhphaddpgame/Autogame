@@ -411,20 +411,13 @@ def run_play_match_task(idx):
     return True
 
 
-def run_store_task(idx):
+def run_store_buy_once(idx, round_no=1):
     """
-    Xử lý nhiệm vụ loại 2_store.
-
-    Flow:
-    1. Về màn hình chính game bằng main.ensure_in_home
-    2. Click STORE
-    3. Click EXCHANGES
-    4. Click TTPOINT
-    5. Click 30K
-    6. Về lại home bằng main.ensure_in_home
+    Chạy 1 vòng mua trong store:
+    ensure home -> store -> exchanges -> ttpoint -> 30k -> ensure home
     """
 
-    print("[RUN] start 2_store")
+    print(f"[RUN] start 2_store round {round_no}/2")
 
     # 1. Về home. Khi đang ở bảng nhiệm vụ, ensure_in_home sẽ tự bấm ESC/back.
     if not ensure_home_by_main(idx, timeout=25):
@@ -449,7 +442,7 @@ def run_store_task(idx):
         STORE_TEMPLATES,
         "exchanges",
         timeout=20,
-        threshold=0.97,
+        threshold=0.82,
         stable_hits=2,
         pre_click_delay=1.0,
         disappear_timeout=8,
@@ -484,13 +477,41 @@ def run_store_task(idx):
 
     sleep(1.5)
 
-    # 6. Về home để main loop tiếp tục mở nhiệm vụ và nhận thưởng.
+    # 6. Về home để vòng sau đi lại từ đầu cho chắc.
     if not ensure_home_by_main(idx, timeout=35):
         return False
 
-    print("[RUN] 2_store finished")
+    print(f"[RUN] 2_store round {round_no}/2 finished")
     return True
 
+
+def run_store_task(idx):
+    """
+    Xử lý nhiệm vụ loại 2_store.
+
+    Nhiệm vụ yêu cầu vào shop mua 2 lần, nên chạy đủ 2 vòng:
+    1. Về màn hình chính game bằng main.ensure_in_home
+    2. Click STORE
+    3. Click EXCHANGES
+    4. Click TTPOINT
+    5. Click 30K
+    6. Về lại home bằng main.ensure_in_home
+    7. Lặp lại thêm 1 lần nữa
+    """
+
+    print("[RUN] start 2_store")
+
+    for round_no in range(1, 3):
+        if not run_store_buy_once(idx, round_no=round_no):
+            print(f"[RUN] 2_store failed at round {round_no}/2")
+            return False
+
+        # Nghỉ nhẹ giữa 2 vòng để UI/game cập nhật nhiệm vụ.
+        if round_no < 2:
+            sleep(2.0)
+
+    print("[RUN] 2_store finished 2 rounds")
+    return True
 
 def run_train_player_task(idx):
     """
