@@ -38,6 +38,31 @@ STORE_TEMPLATES = {
 }
 
 
+TRAIN_PLAYER_TEMPLATES = {
+    # Bước 2: nút/thẻ CLUB ở màn hình home
+    "home_club": "templates/10_train_player/home_club.png",
+
+    # Bước 3: khu vực đội hình 4-3-3 Attack trong màn CLUB
+    "formation_433_attack": "templates/10_train_player/formation_433_attack.png",
+
+    # Bước 4: tiêu đề MY TEAM, dùng để xác nhận đã vào màn đội hình.
+    # Không click theo ảnh GK vì thẻ/cầu thủ GK có thể thay đổi theo từng acc.
+    "my_team_title": "templates/10_train_player/my_team_title.png",
+
+    # Template cũ, giữ lại để debug nếu cần, không dùng trong flow chính.
+    "gk_card": "templates/10_train_player/gk_card.png",
+
+    # Bước 5: nút TRAINING trong popup cầu thủ
+    "popup_training": "templates/10_train_player/popup_training.png",
+
+    # Bước 6: tiêu đề TRAINING, dùng để xác nhận đã vào màn training
+    "training_screen_title": "templates/10_train_player/training_screen_title.png",
+
+    # Bước 7: nút TRAIN sau khi đã chọn cầu thủ nguyên liệu
+    "train_button": "templates/10_train_player/train_button.png",
+}
+
+
 def sleep(sec=0.5):
     time.sleep(sec)
 
@@ -245,6 +270,52 @@ def wait_template(idx, templates_dict, name, timeout=20, interval=1.0, threshold
     return False
 
 
+def wait_see_template_then_click_xy(
+    idx,
+    templates_dict,
+    name,
+    x,
+    y,
+    timeout=20,
+    interval=1.0,
+    threshold=0.84,
+    stable_hits=2,
+    pre_click_delay=0.8,
+):
+    """
+    Chờ thấy 1 template ổn định rồi click tọa độ cố định.
+
+    Dùng cho các vị trí như cầu thủ nguyên liệu trong màn TRAINING:
+    hình cầu thủ có thể thay đổi theo tài khoản, nhưng vị trí ô đầu tiên ổn định.
+    """
+    deadline = time.time() + timeout
+    hit_count = 0
+
+    while time.time() < deadline:
+        img = get_screen_image(idx)
+        if img is None:
+            sleep(interval)
+            continue
+
+        found = see_template(img, templates_dict, name, threshold=threshold)
+        if found:
+            hit_count += 1
+            print(f"[RUN] stable hit {name}: {hit_count}/{stable_hits}")
+        else:
+            hit_count = 0
+
+        if hit_count >= stable_hits:
+            sleep(pre_click_delay)
+            click_xy(idx, x, y)
+            print(f"[RUN] click xy after seeing {name}: ({x}, {y})")
+            return True
+
+        sleep(interval)
+
+    print(f"[RUN] wait see then click xy timeout: {name}")
+    return False
+
+
 def ensure_home_by_main(idx, timeout=20):
     """
     Về màn home bằng ensure_in_home của main.py.
@@ -381,7 +452,7 @@ def run_play_match_task(idx):
         PLAY_MATCH_TEMPLATES,
         "continue",
         timeout=360,
-        interval=2.0,
+        interval=5.0,
         threshold=0.82,
         stable_hits=2,
         pre_click_delay=1.5,
@@ -411,20 +482,13 @@ def run_play_match_task(idx):
     return True
 
 
-def run_store_task(idx):
+def run_store_buy_once(idx, round_no=1):
     """
-    Xử lý nhiệm vụ loại 2_store.
-
-    Flow:
-    1. Về màn hình chính game bằng main.ensure_in_home
-    2. Click STORE
-    3. Click EXCHANGES
-    4. Click TTPOINT
-    5. Click 30K
-    6. Về lại home bằng main.ensure_in_home
+    Chạy 1 vòng mua trong store:
+    ensure home -> store -> exchanges -> ttpoint -> 30k -> ensure home
     """
 
-    print("[RUN] start 2_store")
+    print(f"[RUN] start 2_store round {round_no}/2")
 
     # 1. Về home. Khi đang ở bảng nhiệm vụ, ensure_in_home sẽ tự bấm ESC/back.
     if not ensure_home_by_main(idx, timeout=25):
@@ -449,7 +513,7 @@ def run_store_task(idx):
         STORE_TEMPLATES,
         "exchanges",
         timeout=20,
-        threshold=0.97,
+        threshold=0.82,
         stable_hits=2,
         pre_click_delay=1.0,
         disappear_timeout=8,
@@ -484,11 +548,147 @@ def run_store_task(idx):
 
     sleep(1.5)
 
-    # 6. Về home để main loop tiếp tục mở nhiệm vụ và nhận thưởng.
+    # 6. Về home để vòng sau đi lại từ đầu cho chắc.
     if not ensure_home_by_main(idx, timeout=35):
         return False
 
-    print("[RUN] 2_store finished")
+    print(f"[RUN] 2_store round {round_no}/2 finished")
+    return True
+
+
+def run_store_task(idx):
+    """
+    Xử lý nhiệm vụ loại 2_store.
+
+    Nhiệm vụ yêu cầu vào shop mua 2 lần, nên chạy đủ 2 vòng:
+    1. Về màn hình chính game bằng main.ensure_in_home
+    2. Click STORE
+    3. Click EXCHANGES
+    4. Click TTPOINT
+    5. Click 30K
+    6. Về lại home bằng main.ensure_in_home
+    7. Lặp lại thêm 1 lần nữa
+    """
+
+    print("[RUN] start 2_store")
+
+    for round_no in range(1, 3):
+        if not run_store_buy_once(idx, round_no=round_no):
+            print(f"[RUN] 2_store failed at round {round_no}/2")
+            return False
+
+        # Nghỉ nhẹ giữa 2 vòng để UI/game cập nhật nhiệm vụ.
+        if round_no < 2:
+            sleep(2.0)
+
+    print("[RUN] 2_store finished 2 rounds")
+    return True
+
+def run_train_player_once(idx, round_no=1):
+    """
+    Chạy 1 vòng huấn luyện cầu thủ:
+    home -> CLUB -> đội hình 4-3-3 Attack -> GK -> TRAINING
+    -> chọn 1 cầu thủ nguyên liệu -> TRAIN -> home.
+    """
+
+    print(f"[RUN] start 3_train_player round {round_no}/2")
+
+    # 1. Về home. Khi đang ở bảng nhiệm vụ, ensure_in_home sẽ tự bấm ESC/back.
+    if not ensure_home_by_main(idx, timeout=25):
+        return False
+
+    # 2. Home -> CLUB
+    if not wait_and_click_template(
+        idx,
+        TRAIN_PLAYER_TEMPLATES,
+        "home_club",
+        timeout=15,
+        threshold=0.82,
+        stable_hits=2,
+        pre_click_delay=1.0,
+        disappear_timeout=8,
+    ):
+        return False
+
+    # 3. CLUB -> MY TEAM / đội hình 4-3-3 Attack
+    if not wait_and_click_template(
+        idx,
+        TRAIN_PLAYER_TEMPLATES,
+        "formation_433_attack",
+        timeout=20,
+        threshold=0.82,
+        stable_hits=2,
+        pre_click_delay=1.0,
+        disappear_timeout=8,
+    ):
+        return False
+
+    # 4. Click vị trí GK cố định để hiện popup cầu thủ.
+    # Không dùng template gk_card vì ảnh/thẻ/cầu thủ GK có thể khác giữa các acc.
+    # Tọa độ này là tâm vị trí GK trong sơ đồ đội hình ở màn MY TEAM.
+    if not wait_see_template_then_click_xy(
+        idx,
+        TRAIN_PLAYER_TEMPLATES,
+        "my_team_title",
+        x=600,
+        y=430,
+        timeout=20,
+        threshold=0.82,
+        stable_hits=2,
+        pre_click_delay=0.8,
+    ):
+        return False
+
+    # 5. Popup cầu thủ -> TRAINING
+    if not wait_and_click_template(
+        idx,
+        TRAIN_PLAYER_TEMPLATES,
+        "popup_training",
+        timeout=15,
+        threshold=0.82,
+        stable_hits=2,
+        pre_click_delay=0.8,
+        disappear_timeout=8,
+    ):
+        return False
+
+    # 6. Chờ màn TRAINING rồi click cầu thủ nguyên liệu đầu tiên.
+    # Tọa độ này là ô cầu thủ đầu tiên trong danh sách bên phải ở ảnh 5/6.
+    if not wait_see_template_then_click_xy(
+        idx,
+        TRAIN_PLAYER_TEMPLATES,
+        "training_screen_title",
+        x=465,
+        y=195,
+        timeout=20,
+        threshold=0.82,
+        stable_hits=2,
+        pre_click_delay=1.0,
+    ):
+        return False
+
+    sleep(1.0)
+
+    # 7. Click nút TRAIN sau khi nút đã sáng.
+    if not wait_and_click_template(
+        idx,
+        TRAIN_PLAYER_TEMPLATES,
+        "train_button",
+        timeout=15,
+        threshold=0.82,
+        stable_hits=2,
+        pre_click_delay=0.8,
+        confirm_disappeared=False,
+    ):
+        return False
+
+    sleep(2.0)
+
+    # 8. Về home để vòng sau hoặc main loop tiếp tục nhận thưởng.
+    if not ensure_home_by_main(idx, timeout=35):
+        return False
+
+    print(f"[RUN] 3_train_player round {round_no}/2 finished")
     return True
 
 
@@ -496,24 +696,31 @@ def run_train_player_task(idx):
     """
     Xử lý nhiệm vụ loại 3_train_player.
 
-    Ví dụ:
-    - đóng bảng nhiệm vụ
-    - vào mục player / team
-    - chọn cầu thủ
-    - train
-    - quay lại home
+    Nhiệm vụ yêu cầu huấn luyện cầu thủ 2 lần, nên chạy đủ 2 vòng:
+    1. Về màn hình chính game bằng main.ensure_in_home
+    2. Click CLUB
+    3. Click khu vực 4-3-3 Attack
+    4. Click tọa độ vị trí GK để hiện popup cầu thủ
+    5. Click TRAINING
+    6. Click 1 cầu thủ nguyên liệu để nút TRAIN sáng
+    7. Click TRAIN
+    8. Về lại home bằng main.ensure_in_home
+    9. Lặp lại thêm 1 lần nữa
     """
 
     print("[RUN] start 3_train_player")
 
-    press_back(idx)
-    sleep(1)
+    for round_no in range(1, 3):
+        if not run_train_player_once(idx, round_no=round_no):
+            print(f"[RUN] 3_train_player failed at round {round_no}/2")
+            return False
 
-    # TODO: viết flow train player ở đây
+        # Nghỉ nhẹ giữa 2 vòng để UI/game cập nhật nhiệm vụ.
+        if round_no < 2:
+            sleep(2.0)
 
-    print("[RUN] TODO train player flow")
+    print("[RUN] 3_train_player finished 2 rounds")
     return True
-
 
 def main():
     print("[TEST] task_runner test")
@@ -522,8 +729,10 @@ def main():
     # run_play_match_task(3)
 
     # Test store:
-    run_store_task(3)
+    # run_store_task(3)
 
+    # Test train player:
+    run_train_player_task(3)
 
 if __name__ == "__main__":
     main()

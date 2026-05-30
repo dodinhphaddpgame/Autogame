@@ -5,7 +5,12 @@ import ztest_refresh_tasks
 import task_runner
 
 TEMPLATES = {
-    # Check game / home
+    # Check game / home (top-right icons)
+    "home_friends": "templates/2_home/home_friends.png",
+    "home_messages": "templates/2_home/home_messages.png",
+    "home_settings": "templates/2_home/home_settings.png",
+
+    # Old home templates (coins/gems/fc points) - kept for compatibility
     "login_screen_1": "templates/2_home/1.png",
     "login_screen_2": "templates/2_home/2.png",
     "login_screen_3": "templates/2_home/3.png",
@@ -32,7 +37,7 @@ TEMPLATES = {
     "item_pack_continue": "templates/5_nhanquanhiemvu/7.png",
 }
 
-DEFAULT_THRESHOLD = 0.85
+DEFAULT_THRESHOLD = 0.80
 
 
 # =========================
@@ -80,11 +85,19 @@ def game_is_running(idx, img):
 
 
 def in_home(idx, img):
-    return (
-        see(idx, img, "login_screen_1")
-        and see(idx, img, "login_screen_2")
-        and see(idx, img, "login_screen_3")
-    )
+    """
+    Nhận diện đang ở màn home bằng 3 icon cố định ở góc phải trên:
+    - Bạn bè
+    - Tin nhắn
+    - Cài đặt
+
+    Không dùng coin/gem/fc point nữa vì các icon tiền tệ có thể xuất hiện ở nhiều màn khác.
+    """
+    friends_ok = see(idx, img, "home_friends", threshold=0.88)
+    messages_ok = see(idx, img, "home_messages", threshold=0.88)
+    settings_ok = see(idx, img, "home_settings", threshold=0.88)
+
+    return friends_ok and messages_ok and settings_ok
 
 
 def quest_panel_open(idx, img):
