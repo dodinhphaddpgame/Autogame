@@ -513,7 +513,7 @@ def run_store_buy_once(idx, round_no=1):
         STORE_TEMPLATES,
         "exchanges",
         timeout=20,
-        threshold=0.82,
+        threshold=0.95,
         stable_hits=2,
         pre_click_delay=1.0,
         disappear_timeout=8,
